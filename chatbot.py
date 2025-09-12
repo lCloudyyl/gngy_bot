@@ -392,6 +392,17 @@ class DiscordService():
             await channel.send(chunk)
             await asyncio.sleep(0.3)
 
+
+@bot.event
+async def on_ready():
+    print(f'{bot.user} has connected to Discord!')
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
+
+'''
 @bot.event
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
@@ -408,7 +419,7 @@ async def on_ready():
         print("Synced commands")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
-
+'''
 
 @bot.tree.command(name="image", description="Generate an image")
 @app_commands.describe(prompt="Describe the image")

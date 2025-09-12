@@ -12,10 +12,17 @@ SETTINGS = {
     "STR": {"image_model", "text_model"},
 }
 ALL_OPTIONS = sorted(list(SETTINGS["INT"] | SETTINGS["BOOL"] | SETTINGS["STR"]))
-
 class DB_Manager:
     def __init__(self, path: str = config_path):
         self.path = path
+
+    def ensure_guild(self, data, guild_id: int):
+        if "Guilds" not in data:
+            data["Guilds"] = {}
+        gid = str(guild_id)
+        if gid not in data["Guilds"]:
+            data["Guilds"][gid] = self._default_guild()
+        return data["Guilds"][gid]
 
     def _default_data(self):
         return {
@@ -31,8 +38,8 @@ class DB_Manager:
             "statistics": False,
             "display_model": True,
             "safety": False,
-            "image_model": "gemini-2.0-flash",
-            "text_model": "gemini-2.0-flash-preview-image-generation"
+            "image_model": "gemini-2.0-flash-preview-image-generation",
+            "text_model": "gemini-2.0-flash"
         }
 
     def file_exists(self):
@@ -51,24 +58,6 @@ class DB_Manager:
         except json.JSONDecodeError:
             return self._default_data()
 
-    def add_data(self, guild_id, max_history, word_threshold, set_channel, threads_enabled, statistics, display_model, safety, image_model, text_model):
-        data = self.data_read()
-        gid = str(guild_id)
-
-        if "Guilds" not in data:
-            data["Guilds"] = {}
-        data["Guilds"][gid] = {
-            "max_history": int(max_history),
-            "word_threshold": int(word_threshold),
-            "set_channel": int(set_channel) if set_channel is not None else None,
-            "threads": bool(threads_enabled),
-            "statistics": bool(statistics),
-            "display_model": bool(display_model),
-            "safety": bool(safety),
-            "image_model": str(image_model),
-            "text_model": str(text_model),
-        }
-        self.data_write(data)
 
     def data_write(self, data):
         try:
@@ -77,32 +66,23 @@ class DB_Manager:
                 os.makedirs(directory, exist_ok=True)
             with open(self.path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=4)
+                return True
+
         except (json.JSONDecodeError, FileNotFoundError):
             if os.path.exists(self.path):
                 os.rename(self.path, f"{self.path}.backup")
             with open(self.path, 'w', encoding='utf-8') as f:
                 json.dump(self._default_data(), f, indent=4)
+            return False
+
         except Exception as e:
             print(f"Err: {e}")
-    
-    def load_config(self):
-        return self.data_read()
-
-    def save_config(self, data):
-        self.data_write(data)
-
-    def ensure_guild(self, data, guild_id: int):
-        if "Guilds" not in data:
-            data["Guilds"] = {}
-        gid = str(guild_id)
-        if gid not in data["Guilds"]:
-            data["Guilds"][gid] = self._default_guild()
-        return data["Guilds"][gid]
-
+            return False
 class Discord_Commands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.tree = bot.tree
+        self.db_manager = DB_Manager()
 
     async def config_option_autocomplete(self, interaction: discord.Interaction, current: str):
         current_l = (current or "").lower()
@@ -115,24 +95,30 @@ class Discord_Commands(commands.Cog):
     async def config_edit(self, interaction: discord.Interaction, option: str, value: str):
         await interaction.response.send_message(f"{interaction.user.mention} Editing config...")
         guild_id = interaction.guild.id if interaction.guild else 0
-
-        data = DB_Manager.load_config()
-        cfg = DB_Manager.ensure_guild(data, guild_id)
+        data = self.db_manager.data_read()
+        cfg = self.db_manager.ensure_guild(data, guild_id)
 
         print(option, value)
-        if option in SETTINGS["INT"]:
-            cfg[option] = max(0, int(value))
-            print("Edited")
-        elif option in SETTINGS["BOOL"]:
-            cfg[option] = value.lower() in ("1", "true", "yes", "on")
-        elif option in SETTINGS["STR"]:
-            cfg[option] = value
-        else:
-            await interaction.followup.send("Unknown setting.")
+        try:
+            if option in SETTINGS["INT"]:
+                cfg[option] = max(0, int(value))
+
+            elif option in SETTINGS["BOOL"]:
+                cfg[option] = value.lower() in ("1", "true", "yes", "on")
+            
+            elif option in SETTINGS["STR"]:
+                cfg[option] = value
+            else:
+                await interaction.followup.send("Unknown setting.")
+                return
+        except ValueError:
+            await interaction.followup.send(f"Invalid value for {option}.")
+            return
+        except Exception as e:
+            await interaction.followup.send(f"Error: {e}.")
             return
 
-        await interaction.response.send_message(f"{interaction.user.mention} Ediememting config...")
-        DB_Manager.save_config(data)
+        self.db_manager.data_write(data)
         await interaction.followup.send(f"Updated {option}.")
 
 async def setup(bot: commands.Bot):
