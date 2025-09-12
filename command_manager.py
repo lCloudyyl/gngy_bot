@@ -89,7 +89,7 @@ class Discord_Commands(commands.Cog):
         choices = [app_commands.Choice(name=o, value=o) for o in ALL_OPTIONS if current_l in o.lower()]
         return choices[:25]
 
-    @app_commands.command(name="config", description="Edit server config")
+    @app_commands.command(name="edit_config", description="Edit server config")
     @app_commands.describe(option="Setting", value="New value")
     @app_commands.autocomplete(option=config_option_autocomplete)
     async def config_edit(self, interaction: discord.Interaction, option: str, value: str):
@@ -98,7 +98,6 @@ class Discord_Commands(commands.Cog):
         data = self.db_manager.data_read()
         cfg = self.db_manager.ensure_guild(data, guild_id)
 
-        print(option, value)
         try:
             if option in SETTINGS["INT"]:
                 cfg[option] = max(0, int(value))
@@ -120,6 +119,25 @@ class Discord_Commands(commands.Cog):
 
         self.db_manager.data_write(data)
         await interaction.followup.send(f"Updated {option}.")
+
+    @app_commands.command(name="config", description="Display current config")
+    async def config_edit(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=False)
+        guild_id = interaction.guild.id if interaction.guild else 0
+        data = self.db_manager.data_read()
+        cfg = self.db_manager.ensure_guild(data, guild_id)
+
+        embed = discord.Embed(title="Server Config:", color=0x00BFFF)
+
+        for option in cfg:
+            embed.add_field(
+                name=f"{option}:",
+                value=f"{cfg[option]}",
+                inline=True
+            )
+
+        await interaction.followup.send(embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Discord_Commands(bot))
