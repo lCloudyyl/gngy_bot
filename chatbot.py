@@ -401,22 +401,6 @@ async def on_ready():
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
-'''
-@bot.event
-async def on_ready():
-    print(f'{bot.user} has connected to Discord!')
-    try:
-        guild_id = 1361097793325760552
-        if guild_id:
-            test_guild = discord.Object(id=1361097793325760552)
-            print(test_guild)
-            await bot.tree.sync(guild=test_guild)
-        else:
-            await bot.tree.sync()
-        print("Synced commands")
-    except Exception as e:
-        print(f"Failed to sync commands: {e}")
-'''
 
 @bot.tree.command(name="image", description="Generate an image")
 @app_commands.describe(prompt="Describe the image")
@@ -655,7 +639,7 @@ if __name__ == "__main__":
 
     async def main():
         async with bot:
-            await bot.load_extension("command_manager")
+            await bot.load_extension("config_manager")
             await bot.start(DISCORD_TOKEN)
 
     asyncio.run(main())
