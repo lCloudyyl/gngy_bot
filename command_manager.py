@@ -58,7 +58,6 @@ class DB_Manager:
         except json.JSONDecodeError:
             return self._default_data()
 
-
     def data_write(self, data):
         try:
             directory = os.path.dirname(self.path)
@@ -89,7 +88,7 @@ class Discord_Commands(commands.Cog):
         choices = [app_commands.Choice(name=o, value=o) for o in ALL_OPTIONS if current_l in o.lower()]
         return choices[:25]
 
-    @app_commands.command(name="edit_config", description="Edit server config")
+    @app_commands.command(name="config_edit", description="Edit server config")
     @app_commands.describe(option="Setting", value="New value")
     @app_commands.autocomplete(option=config_option_autocomplete)
     async def config_edit(self, interaction: discord.Interaction, option: str, value: str):
@@ -104,15 +103,18 @@ class Discord_Commands(commands.Cog):
 
             elif option in SETTINGS["BOOL"]:
                 cfg[option] = value.lower() in ("1", "true", "yes", "on")
-            
+
             elif option in SETTINGS["STR"]:
                 cfg[option] = value
+
             else:
                 await interaction.followup.send("Unknown setting.")
                 return
+
         except ValueError:
             await interaction.followup.send(f"Invalid value for {option}.")
             return
+
         except Exception as e:
             await interaction.followup.send(f"Error: {e}.")
             return
@@ -121,7 +123,7 @@ class Discord_Commands(commands.Cog):
         await interaction.followup.send(f"Updated {option}.")
 
     @app_commands.command(name="config", description="Display current config")
-    async def config_edit(self, interaction: discord.Interaction):
+    async def config_display(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=False)
         guild_id = interaction.guild.id if interaction.guild else 0
         data = self.db_manager.data_read()
@@ -138,29 +140,17 @@ class Discord_Commands(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
+    @app_commands.command(name="reset_config", description="reset config for this server.")
+    async def reset_config(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id if interaction.guild else 0 
+        data = self.db_manager.data_read()
+
+        data["Guilds"][str(guild_id)] = self.db_manager._default_guild()
+
+        self.db_manager.data_write(data)
+
+        await interaction.followup.send("reset config")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Discord_Commands(bot))
-
-'''
-/config option: 
-max_history number 
-message length number 
-set channel number 
-
-threads for long messages bool
-statistics bool 
-display model used on message bool
-safety enable bool
-
-image_model model 
-text_model model  
-
-
-number
-bool
-model
-'''
-
-
-

@@ -401,19 +401,16 @@ async def on_ready():
         print(f"Synced {len(synced)} command(s)")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
-
 '''
 @bot.event
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
     try:
-        # Optional: clear all global commands (careful in prod)
-        bot.tree.clear_commands(guild=None)  # clears staged global commands [2]
-        # Then sync only to your dev guild for fast iteration
+        guild_id = 1361097793325760552
         if guild_id:
             test_guild = discord.Object(id=1361097793325760552)
             print(test_guild)
-            await bot.tree.sync(guild=test_guild)  # instant guild sync [18]
+            await bot.tree.sync(guild=test_guild)
         else:
             await bot.tree.sync()
         print("Synced commands")
